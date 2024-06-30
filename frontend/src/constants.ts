@@ -1,5 +1,9 @@
-const BACKEND_BASE_URL = "http://localhost:8080";
+const BACKEND_BASE_URL = "https://40e3-2409-4060-2e39-e173-c938-697a-48f1-b4db.ngrok-free.app";
+
 const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
+
+const API_AUTH_BASE_URL = `${API_BASE_URL}/auth`;
+const API_AUTH_LOGIN_URL = `${API_AUTH_BASE_URL}/login`;
 
 const SNIPPETS_BASE_URL = `${API_BASE_URL}/snippets`;
 const SNIPPETS_RAW_BASE_URL = `${SNIPPETS_BASE_URL}/raw`;
@@ -9,6 +13,8 @@ const SNIPPETS_UPLOAD_URL = `${SNIPPETS_BASE_URL}/upload`;
 export {
   BACKEND_BASE_URL,
   API_BASE_URL,
+  API_AUTH_BASE_URL,
+  API_AUTH_LOGIN_URL,
   SNIPPETS_BASE_URL,
   SNIPPETS_RAW_BASE_URL,
   SNIPPETS_DATA_BASE_URL,

@@ -9,11 +9,11 @@ const ExplorePage = () => {
   const observer = useRef<IntersectionObserver>();
 
   const loadData = async ({ pageParam }) => {
-    const snippets = await fetchSnippets();
+    const snippets = await fetchSnippets(pageParam);
     return snippets;
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetching, isLoading } = useInfiniteQuery<ISnippet[]>({
+  const { data, fetchNextPage, hasNextPage, isFetching, isLoading } = useInfiniteQuery<ISnippet[],ISnippet>({
     queryKey: ["snippets"],
     queryFn: ({ pageParam }) => loadData({ pageParam }),
     initialPageParam: 1,

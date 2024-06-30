@@ -6,9 +6,18 @@ import ThemeContext, { Theme } from "@src/contexts/ThemeContext";
 import { langs } from "@uiw/codemirror-extensions-langs";
 import { ISnippet } from "@src/utils/data";
 import { Avatar, Button } from "react-daisyui";
-import { ArrowBigDown, ArrowBigUp, BookmarkPlus, Clipboard, ClipboardCheck, Download } from "lucide-react";
+import {
+  ArrowBigDown,
+  ArrowBigUp,
+  BookmarkCheck,
+  BookmarkPlus,
+  Clipboard,
+  ClipboardCheck,
+  Download
+} from "lucide-react";
 import SnippetTag from "@src/components/SnippetTag";
 import { truncate } from "lodash";
+import SnippetContext, { ISnippetActions, VoteStatus } from "@src/contexts/SnippetContext";
 interface ICopyButtonProps {
   onClick: MouseEventHandler<HTMLButtonElement>;
 }
@@ -41,10 +50,10 @@ const CopyButton = ({ onClick }: ICopyButtonProps) => {
   );
 };
 
-const DownloadButton = () => {
+const DownloadButton = ({onClick}: {onClick: MouseEventHandler}) => {
   return (
     <a href="#" className="grow">
-      <Button className="w-full" size="sm">
+      <Button onClick={onClick} className="w-full" size="sm">
         <Download size={14} />
         Raw
       </Button>
@@ -81,58 +90,90 @@ const SnippetHead = ({ snippetData }: ISnippetProps) => {
   );
 };
 
-const UpvoteButton = () => {
+const UpvoteButton = ({onClick}: {onClick: MouseEventHandler}) => {
+  const [{ voteStatus }] = useContext(SnippetContext);
   return (
-    <Button size="xs" className="flex gap-2 rounded-r-none">
+    <Button onClick={onClick} size="xs" className={`flex gap-2 rounded-r-none ${voteStatus == VoteStatus.Upvoted && "bg-primary"}`}>
       <ArrowBigUp size={20} />
     </Button>
   );
 };
 
-const DownvoteButton = () => {
+const DownvoteButton = ({onClick}: {onClick: MouseEventHandler}) => {
+  const [{ voteStatus }] = useContext(SnippetContext);
   return (
-    <Button size="xs" className="flex gap-2 rounded-l-none">
+    <Button onClick={onClick} size="xs" className={`flex gap-2 rounded-l-none ${voteStatus == VoteStatus.Downvoted && "bg-secondary"}`}>
       <ArrowBigDown size={20} />
     </Button>
   );
 };
 
 const SaveButton = () => {
+  const [snippetActions, setSnippetActions] = useContext(SnippetContext);
+  const toggleSave = useCallback(() => {
+    const newSavedStatus = !snippetActions.saved;
+    // TODO: send `newSavedStatus` to server
+    setSnippetActions({
+      ...snippetActions,
+      saved: newSavedStatus
+    });
+  }, [snippetActions, setSnippetActions]);
   return (
-    <Button size="xs" className="flex gap-1 items-center">
-      <BookmarkPlus size={14} /> Save
+    <Button onClick={toggleSave} size="xs" className="flex gap-1 items-center">
+      {snippetActions.saved ? (
+        <>
+          <BookmarkCheck size={14} /> Saved
+        </>
+      ) : (
+        <>
+          <BookmarkPlus size={14} /> Save
+        </>
+      )}
     </Button>
   );
 };
 
-const SnippetBody = ({ snippetData }: ISnippetProps) => {
-  const { title, description, tags, author } = snippetData;
+interface ISnippetBodyProps {
+  snippetData: ISnippet;
+  onDownloadClick: MouseEventHandler;
+}
+
+const SnippetBody = ({ snippetData, onDownloadClick }: ISnippetBodyProps) => {
+  const { title, description, tags, author, score } = snippetData;
+  const [state, setState] = useContext(SnippetContext);
   const copySnippet = useCallback(async () => {
     await navigator.clipboard.writeText(snippetData.code);
   }, [snippetData.code]);
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 h-[21rem] flex flex-col gap-4 justify-between grow">
       <div className="flex flex-col gap-1">
         <div className="text-sm flex items-center gap-2">
-          <Avatar
-            shape="circle"
-            size={18}
-            src="https://i.pinimg.com/736x/58/7b/57/587b57f888b1cdcc0e895cbdcfde1c1e.jpg"
-          />
-          {author}
+          {author.profilePicUrl ? (
+            <Avatar className="placeholder" shape="circle" size={18} src={author.profilePicUrl} />
+          ) : (
+            <div className="avatar placeholder">
+              <div className="bg-neutral w-4 text-xs text-neutral-content w-24 rounded-full">
+                <span>{ author.username[0] }</span>
+              </div>
+            </div>
+          )}
+          {author.username}
         </div>
         <h1 className="text-xl font-bold">{title}</h1>
       </div>
-      <span className="text-sm">{truncate(description, {length: 140}) || <i>No description provided.</i>}</span>
+      <span className="text-sm">{truncate(description, { length: 140 }) || <i>No description provided.</i>}</span>
       <div className="flex gap-2">
         <CopyButton onClick={copySnippet} />
-        <DownloadButton />
+        <DownloadButton onClick={onDownloadClick} />
       </div>
       <Tags tags={tags} />
-      <div className="flex w-full justify-between">
+      <div className="flex w-full justify-between items-center">
         <div className="flex">
-          <UpvoteButton />
-          <DownvoteButton />
+          <UpvoteButton onClick={() => setState(state => ({...state, voteStatus: VoteStatus.Upvoted}))} />
+          <DownvoteButton onClick={() => setState(state => ({...state, voteStatus: VoteStatus.Downvoted}))} />
+        </div>
+        <div className="text-sm">
+          {score} {score == 1 ? "vote" : "votes"}
         </div>
         <div>
           <SaveButton />
@@ -144,15 +185,25 @@ const SnippetBody = ({ snippetData }: ISnippetProps) => {
 
 interface ISnippetProps {
   snippetData: ISnippet;
-  upvoted?: boolean;
 }
 
-const Snippet = forwardRef<HTMLDivElement, ISnippetProps>(({ snippetData, upvoted = false }, ref) => {
+const Snippet = forwardRef<HTMLDivElement, ISnippetProps>(({ snippetData }, ref) => {
+  const [snippetActions, setSnippetActions] = useState<ISnippetActions>({
+    voteStatus: VoteStatus.None,
+    saved: false
+  });
   return (
-    <div ref={ref} className="w-72 border border-base-content/10 rounded-xl">
-      <SnippetHead snippetData={snippetData} />
-      <SnippetBody snippetData={snippetData} />
-    </div>
+    <SnippetContext.Provider value={[snippetActions, setSnippetActions]}>
+      <div ref={ref} className="w-72 border border-base-content/10 rounded-xl h-fit">
+        <SnippetHead snippetData={snippetData} />
+        <SnippetBody snippetData={snippetData} onDownloadClick={() => {
+          const a = document.createElement('a');
+          a.download = `${snippetData.author.username}.${snippetData.lang}`;
+          a.href = URL.createObjectURL(new Blob([snippetData.code]));
+          a.click();
+        }} />
+      </div>
+    </SnippetContext.Provider>
   );
 });
 

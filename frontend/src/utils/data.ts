@@ -1,8 +1,12 @@
+import { SNIPPETS_BASE_URL } from "@src/constants";
 import { random, sampleSize } from "lodash";
 
 interface ISnippet {
   code: string;
-  author: string;
+  author: {
+    username: string;
+    profilePicUrl?: string;
+  };
   lang: string;
   title: string;
   description: string;
@@ -64,11 +68,20 @@ int main() {
   return snippetData;
 };
 
-const fetchSnippets: () => Promise<ISnippet[]> = async () => {
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  return Array(20)
-    .fill(makeTestSnippet)
-    .map(f => f());
+const fetchSnippets: (page: number) => Promise<ISnippet[]> = async () => {
+  console.log("hi");
+  const res = await fetch(SNIPPETS_BASE_URL, {
+    method: "POST",
+    mode: "cors",
+    body: JSON.stringify({
+      page: 1
+    }),
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+  const data = await res.json();
+  return data.data;
 };
 
 export { type ISnippet, fetchSnippets };
